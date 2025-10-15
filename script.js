@@ -1,4 +1,15 @@
-// Game state variables
+/*
+  Juego Matemático de Tablas
+  Mejoras:
+  - Botón PDF funcional en pantalla de resultados (usa jsPDF y autoTable opcional)
+  - Integración con Google Sheets (hoja pública proporcionada)
+  - Envío de resultados al terminar y lectura de ranking global
+  - Código comentado y organizado
+*/
+
+// =============================
+// Estado del juego
+// =============================
 let currentQuestion = {};
 let score = 0;
 let incorrectCount = 0;
@@ -11,13 +22,14 @@ let isDarkMode = false;
 let startTime = null;
 let playerName = '';
 let difficulty = 'medio';
-let difficultyMultipliers = { facil: 5, medio: 10, dificil: 12, 'muy-dificil': 15 };
+const difficultyMultipliers = { facil: 5, medio: 10, dificil: 12, 'muy-dificil': 15 };
 
-// NUEVO: historial de preguntas para PDF y análisis
-// Cada entrada tendrá: { a, b, respuestaUsuario, correcta, resultadoCorrecto }
+// Historial de preguntas para PDF: { a, b, respuestaUsuario, correcta, resultadoCorrecto }
 let questionHistory = [];
 
-// DOM Elements
+// =============================
+// Elementos del DOM
+// =============================
 const setupScreen = document.getElementById('setup-screen');
 const gameScreen = document.getElementById('game-screen');
 const resultsScreen = document.getElementById('results-screen');
@@ -34,248 +46,276 @@ const finalIncorrectElement = document.getElementById('final-incorrect');
 const startButton = document.getElementById('start-button');
 const submitButton = document.getElementById('submit');
 const restartButton = document.getElementById('restart');
-const darkModeToggle = document.getElementById('dark-mode-toggle');
-const playerNameInput = document.getElementById('player-name');
-const difficultySelect = document.getElementById('difficulty-select');
-const rankingContainer = document.getElementById('ranking-container');
-// NUEVO: botón para descargar PDF en la pantalla de resultados
 const downloadPdfButton = document.getElementById('download-pdf');
+const rankingContainer = document.getElementById('ranking');
 
+// =============================
+// Configuración de Google Sheets
+// =============================
+// Para escribir/leer a una hoja pública de forma segura, se recomienda un Google Apps Script
+// (GAS) desplegado como Web App que escriba en esa hoja. Aquí usamos endpoints públicos.
+// Debes crear en tu cuenta un Apps Script vinculado a esa hoja y publicar un Web App con acceso "Cualquiera".
+// Usa la URL del Web App en SHEETS_WRITE_URL para registrar partidas y SHEETS_READ_URL para leer ranking.
+// Nota: No es posible escribir directamente a la hoja solo con la URL de visualización pública.
+
+// Reemplaza estas URL con las de tu Apps Script:
+const SHEETS_WRITE_URL = 'https://script.google.com/macros/s/REEMPLAZA_AQUI/exec'; // POST {player, score, correct, incorrect, total, millis, difficulty, dateISO}
+const SHEETS_READ_URL = 'https://script.google.com/macros/s/REEMPLAZA_AQUI/exec?action=leaderboard'; // GET devuelve ranking JSON
+
+// Además, guarda la ID de la hoja por referencia (no se usa para fetch directo, solo documental)
+const SHEET_DOC_URL = 'https://docs.google.com/spreadsheets/d/13W-VHTd0R_awvJ5JTGU9Ruu7j71U1QstFAt76McGmmk/edit?usp=sharing';
+
+// =============================
 // Utilidades
-function rand(min, max) {
+// =============================
+function randInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function toggleScreens(showGame) {
-  setupScreen.classList.toggle('hidden', showGame);
-  gameScreen.classList.toggle('hidden', !showGame);
-}
-
-function showResultsScreen() {
-  setupScreen.classList.add('hidden');
-  gameScreen.classList.add('hidden');
-  resultsScreen.classList.remove('hidden');
-}
-
-function resetGameState() {
-  score = 0;
-  incorrectCount = 0;
-  correctCount = 0;
-  totalCount = 0;
-  questionCount = 0;
-  questionHistory = []; // NUEVO: vaciar historial al reiniciar
-  feedbackElement.textContent = '';
-  scoreElement.textContent = '0';
-  incorrectElement.textContent = '0';
-  totalElement.textContent = '0';
-  progressElement.textContent = `Pregunta 0 de ${maxQuestions}`;
-}
-
-// Inicialización
-playerNameInput.addEventListener('input', () => {
-  playerName = playerNameInput.value.trim();
-  startButton.disabled = !(playerName && selectedTables.length > 0);
-});
-
-difficultySelect.addEventListener('change', () => {
-  difficulty = difficultySelect.value;
-});
-
-// Selección de tablas
-const tablesContainer = document.getElementById('tables');
-tablesContainer.addEventListener('click', (e) => {
-  const btn = e.target.closest('.table-button');
-  if (!btn) return;
-  const t = Number(btn.dataset.table);
-  if (selectedTables.includes(t)) {
-    selectedTables = selectedTables.filter(x => x !== t);
-    btn.classList.remove('active');
-  } else {
-    selectedTables.push(t);
-    btn.classList.add('active');
-  }
-  startButton.disabled = !(playerName && selectedTables.length > 0);
-});
-
-// Generación de una nueva pregunta
-function nextQuestion() {
-  const max = difficultyMultipliers[difficulty] || 10;
-  const a = selectedTables[Math.floor(Math.random() * selectedTables.length)];
-  const b = rand(1, max);
-  currentQuestion = { a, b, answer: a * b };
-  questionElement.textContent = `¿Cuánto es ${a} × ${b}?`;
-  answerInput.value = '';
-  answerInput.focus();
-}
-
 function startGame() {
-  resetGameState();
+  // Leer selección de tablas, jugador, dificultad, número de preguntas del DOM
+  const nameInput = document.getElementById('player-name');
+  const diffSelect = document.getElementById('difficulty');
+  const qSelect = document.getElementById('questions-count');
+  const tablesChecks = Array.from(document.querySelectorAll('input[name="tables"]:checked'));
+
+  playerName = (nameInput?.value || '').trim() || 'Anónimo';
+  difficulty = diffSelect?.value || 'medio';
+  maxQuestions = parseInt(qSelect?.value || '10', 10);
+  selectedTables = tablesChecks.map(c => parseInt(c.value, 10));
+  if (selectedTables.length === 0) selectedTables = [1,2,3,4,5,6,7,8,9,10];
+
+  score = 0; incorrectCount = 0; correctCount = 0; totalCount = 0; questionCount = 0;
+  questionHistory = [];
   startTime = Date.now();
-  toggleScreens(true);
+
+  setupScreen?.classList.add('hidden');
+  gameScreen?.classList.remove('hidden');
+
   nextQuestion();
 }
 
-function finishGame() {
-  // Mostrar resultados finales
-  finalScoreElement.textContent = String(score);
-  finalCorrectElement.textContent = String(correctCount);
-  finalIncorrectElement.textContent = String(incorrectCount);
-  showResultsScreen();
-  // Guardar resultado en ranking/localStorage si ya estaba implementado
-  try { saveGameResult && saveGameResult({ playerName, score, correctCount, incorrectCount, totalCount, difficulty, selectedTables }); } catch {}
-}
-
-function checkAnswer() {
-  const val = Number(answerInput.value);
-  if (Number.isNaN(val)) {
-    feedbackElement.textContent = 'Ingresa un número válido.';
-    feedbackElement.className = 'feedback warning';
+function nextQuestion() {
+  if (questionCount >= maxQuestions) {
+    endGame();
     return;
   }
+  const a = selectedTables[randInt(0, selectedTables.length - 1)];
+  const b = randInt(0, difficulty === 'facil' ? 10 : difficulty === 'medio' ? 12 : difficulty === 'dificil' ? 15 : 20);
+  currentQuestion = { a, b };
+  questionElement.textContent = `${a} × ${b} = ?`;
+  answerInput.value = '';
+  feedbackElement.textContent = '';
+  questionCount++;
+  updateProgress();
+}
 
-  const isCorrect = val === currentQuestion.answer;
-
-  // NUEVO: registrar esta pregunta en el historial para el PDF
-  questionHistory.push({
-    a: currentQuestion.a,
-    b: currentQuestion.b,
-    respuestaUsuario: val,
-    correcta: isCorrect,
-    resultadoCorrecto: currentQuestion.answer
-  });
-
-  if (isCorrect) {
-    score += 10; // o la lógica existente
-    correctCount += 1;
-    feedbackElement.textContent = '✅ ¡Correcto!';
-    feedbackElement.className = 'feedback correct';
-  } else {
-    incorrectCount += 1;
-    feedbackElement.textContent = `❌ Incorrecto. La respuesta correcta era ${currentQuestion.answer}.`;
-    feedbackElement.className = 'feedback incorrect';
-  }
-
-  totalCount += 1;
-  questionCount += 1;
-
-  // Actualizar UI
+function updateProgress() {
   scoreElement.textContent = String(score);
   incorrectElement.textContent = String(incorrectCount);
-  totalElement.textContent = String(totalCount);
-  progressElement.textContent = `Pregunta ${questionCount} de ${maxQuestions}`;
-
-  // Continuar o finalizar
-  if (questionCount >= maxQuestions) {
-    finishGame();
-  } else {
-    nextQuestion();
-  }
+  totalElement.textContent = `${correctCount + incorrectCount}/${maxQuestions}`;
+  progressElement.style.width = `${((correctCount + incorrectCount) / maxQuestions) * 100}%`;
 }
 
-// Modo oscuro
-function applyDarkMode() {
-  document.body.classList.toggle('dark-mode', isDarkMode);
+function submitAnswer() {
+  const userVal = parseInt(answerInput.value, 10);
+  const correctVal = currentQuestion.a * currentQuestion.b;
+  const ok = userVal === correctVal;
+  if (ok) { score += difficultyMultipliers[difficulty] || 10; correctCount++; feedbackElement.textContent = '¡Correcto!'; }
+  else { incorrectCount++; feedbackElement.textContent = `Incorrecto. Era ${correctVal}`; }
+  totalCount = correctCount + incorrectCount;
+
+  // Guardamos en historial para PDF
+  questionHistory.push({ a: currentQuestion.a, b: currentQuestion.b, respuestaUsuario: isNaN(userVal) ? '' : userVal, correcta: ok, resultadoCorrecto: correctVal });
+
+  updateProgress();
+
+  // Siguiente con pequeño retardo
+  setTimeout(nextQuestion, 500);
 }
 
-darkModeToggle.addEventListener('click', () => {
-  isDarkMode = !isDarkMode;
-  applyDarkMode();
-});
+function endGame() {
+  const millis = Date.now() - startTime;
+  gameScreen?.classList.add('hidden');
+  resultsScreen?.classList.remove('hidden');
+  finalScoreElement.textContent = `${score}`;
+  finalCorrectElement.textContent = `${correctCount}`;
+  finalIncorrectElement.textContent = `${incorrectCount}`;
 
-// Eventos principales
-startButton.addEventListener('click', startGame);
-submitButton.addEventListener('click', checkAnswer);
-answerInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') checkAnswer();
-});
+  // Enviar resultado a Sheets y luego refrescar ranking
+  sendResultToSheets({
+    player: playerName,
+    score,
+    correct: correctCount,
+    incorrect: incorrectCount,
+    total: maxQuestions,
+    millis,
+    difficulty,
+    dateISO: new Date().toISOString()
+  }).finally(loadRankingFromSheets);
+}
 
-restartButton.addEventListener('click', () => {
-  resultsScreen.classList.add('hidden');
-  setupScreen.classList.remove('hidden');
-});
+// =============================
+// PDF: generación y descarga
+// =============================
+// Requiere que en index.html esté cargado jsPDF (y opcionalmente autoTable)
+// <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+// <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 
-// NUEVO: generación de PDF usando jsPDF
-// Esta función crea un PDF con: nombre, tablas, dificultad, puntaje, aciertos, errores e historial
-async function generateResultsPDF() {
-  // jsPDF está expuesto en window.jspdf.jsPDF cuando se carga desde CDN
-  const { jsPDF } = window.jspdf || {};
-  if (!jsPDF) {
-    alert('No se pudo cargar jsPDF. Revisa tu conexión a Internet.');
-    return;
-  }
+function generateResultsPDF() {
+  try {
+    // Detectar jsPDF
+    const jsPDF = window.jspdf?.jsPDF || window.jsPDF; // compatibilidad
+    if (!jsPDF) {
+      alert('No se encontró jsPDF. Verifica el script en index.html.');
+      return;
+    }
+    const doc = new jsPDF('p', 'pt', 'a4');
+    const margin = 40;
+    let y = margin;
 
-  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
-  const margin = 40;
-  let y = margin;
+    // Encabezado
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.text('Reporte de Partida - Juego de Tablas', margin, y);
+    y += 20;
 
-  // Encabezado
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
-  doc.text('Resultados - Juego de Tablas de Multiplicar', margin, y);
-  y += 24;
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'normal');
-  const fecha = new Date().toLocaleString();
-  doc.text(`Fecha: ${fecha}`, margin, y);
-  y += 18;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    doc.text(`Jugador: ${playerName}`, margin, y); y += 14;
+    doc.text(`Dificultad: ${difficulty}`, margin, y); y += 14;
+    doc.text(`Puntaje: ${score} | Aciertos: ${correctCount} | Errores: ${incorrectCount}`, margin, y); y += 14;
+    doc.text(`Total preguntas: ${maxQuestions} | Fecha: ${new Date().toLocaleString()}`, margin, y); y += 20;
 
-  // Datos principales
-  const tablasTxt = selectedTables.length ? selectedTables.sort((a,b)=>a-b).join(', ') : 'N/A';
-  doc.text(`Nombre: ${playerName || 'Sin nombre'}`, margin, y); y += 16;
-  doc.text(`Dificultad: ${difficulty}`, margin, y); y += 16;
-  doc.text(`Tablas: ${tablasTxt}`, margin, y); y += 16;
-  doc.text(`Puntaje: ${score}`, margin, y); y += 16;
-  doc.text(`Aciertos: ${correctCount}`, margin, y); y += 16;
-  doc.text(`Errores: ${incorrectCount}`, margin, y); y += 24;
+    // Tabla simple con historial
+    const useAutoTable = !!doc.autoTable; // si está disponible
+    if (useAutoTable) {
+      const rows = questionHistory.map(q => [ `${q.a} × ${q.b}`, String(q.respuestaUsuario), String(q.resultadoCorrecto), q.correcta ? '✅' : '❌' ]);
+      doc.autoTable({
+        head: [['Pregunta', 'Tu respuesta', 'Correcta', 'Resultado']],
+        body: rows,
+        startY: y,
+        theme: 'grid',
+        styles: { fontSize: 10 }
+      });
+    } else {
+      // Dibujo manual si no está autotable
+      const colX = [margin, margin + 140, margin + 300, margin + 420];
+      doc.setFontSize(10);
+      doc.text('Pregunta', colX[0], y);
+      doc.text('Tu respuesta', colX[1], y);
+      doc.text('Correcta', colX[2], y);
+      doc.text('Resultado', colX[3], y);
+      y += 12;
+      doc.setLineWidth(0.5);
+      doc.line(margin, y, 555, y);
+      y += 10;
 
-  // Subtítulo historial
-  doc.setFont('helvetica', 'bold');
-  doc.text('Historial de preguntas', margin, y); y += 16;
-  doc.setFont('helvetica', 'normal');
-
-  // Columnas
-  const colX = [margin, margin + 140, margin + 300, margin + 420];
-  doc.setFontSize(10);
-  doc.text('Pregunta', colX[0], y);
-  doc.text('Tu respuesta', colX[1], y);
-  doc.text('Correcta', colX[2], y);
-  doc.text('Resultado', colX[3], y);
-  y += 12;
-  doc.setLineWidth(0.5);
-  doc.line(margin, y, 555, y);
-  y += 10;
-
-  // Filas con salto de página cuando se acerque al final
-  const lineHeight = 14;
-  const maxY = 780; // límite aprox para A4 en pt con margen
-  questionHistory.forEach((q) => {
-    const pregunta = `${q.a} × ${q.b}`;
-    const tuResp = String(q.respuestaUsuario);
-    const esCorr = q.correcta ? '✅' : '❌';
-    const resultado = String(q.resultadoCorrecto);
-
-    if (y + lineHeight > maxY) {
-      doc.addPage();
-      y = margin;
+      const lineHeight = 14;
+      const maxY = 780; // límite aprox
+      questionHistory.forEach(q => {
+        const pregunta = `${q.a} × ${q.b}`;
+        const tuResp = String(q.respuestaUsuario);
+        const esCorr = q.correcta ? '✅' : '❌';
+        const resultado = String(q.resultadoCorrecto);
+        if (y + lineHeight > maxY) { doc.addPage(); y = margin; }
+        doc.text(pregunta, colX[0], y);
+        doc.text(tuResp, colX[1], y);
+        doc.text(esCorr, colX[2], y);
+        doc.text(resultado, colX[3], y);
+        y += lineHeight;
+      });
     }
 
-    doc.text(pregunta, colX[0], y);
-    doc.text(tuResp, colX[1], y);
-    doc.text(esCorr, colX[2], y);
-    doc.text(resultado, colX[3], y);
-    y += lineHeight;
-  });
+    // Nombre de archivo amigable
+    const safeName = (playerName || 'sin-nombre').toLowerCase().replace(/\s+/g, '-');
+    const safeDiff = (difficulty || 'medio').replace(/\s+/g, '-');
+    const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g, '-');
+    const fileName = `${safeName}_${safeDiff}_${stamp}.pdf`;
 
-  // Nombre de archivo amigable: nombre_dificultad_fecha.pdf
-  const safeName = (playerName || 'sin-nombre').toLowerCase().replace(/\s+/g, '-');
-  const safeDiff = (difficulty || 'medio').replace(/\s+/g, '-');
-  const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g, '-');
-  const fileName = `${safeName}_${safeDiff}_${stamp}.pdf`;
-
-  doc.save(fileName);
+    doc.save(fileName);
+  } catch (err) {
+    console.error('Error generando PDF', err);
+    alert('Ocurrió un error al generar el PDF. Revisa la consola.');
+  }
 }
 
-// Enlazar botón de descarga en resultados (si existe en el DOM actual)
+// Enlazar botón de descarga si existe
 if (downloadPdfButton) {
   downloadPdfButton.addEventListener('click', generateResultsPDF);
 }
+
+// =============================
+// Integración con Google Sheets (vía Apps Script Web App)
+// =============================
+// sendResultToSheets: envía los datos de la partida al endpoint (POST JSON)
+async function sendResultToSheets(payload) {
+  if (!SHEETS_WRITE_URL.includes('script.google.com')) {
+    console.warn('SHEETS_WRITE_URL no configurada. Omite envío.');
+    return;
+  }
+  try {
+    const res = await fetch(SHEETS_WRITE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json().catch(() => ({}));
+    console.log('Resultado enviado a Sheets', data);
+  } catch (e) {
+    console.error('Error enviando a Sheets:', e);
+  }
+}
+
+// loadRankingFromSheets: obtiene ranking y lo pinta
+async function loadRankingFromSheets() {
+  if (!SHEETS_READ_URL.includes('script.google.com')) {
+    console.warn('SHEETS_READ_URL no configurada. Omite lectura.');
+    return;
+  }
+  try {
+    const res = await fetch(SHEETS_READ_URL);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    // Se espera un JSON tipo: { leaderboard: [ { player, score, correct, incorrect, total, millis, difficulty, dateISO }, ... ] }
+    const list = Array.isArray(data.leaderboard) ? data.leaderboard : [];
+    renderRanking(list);
+  } catch (e) {
+    console.error('Error leyendo ranking de Sheets:', e);
+  }
+}
+
+function renderRanking(list) {
+  if (!rankingContainer) return;
+  rankingContainer.innerHTML = '';
+  if (list.length === 0) {
+    rankingContainer.textContent = 'Sin datos de ranking aún.';
+    return;
+  }
+  const ol = document.createElement('ol');
+  list
+    .sort((a,b) => (b.score||0) - (a.score||0))
+    .slice(0, 20)
+    .forEach((row) => {
+      const li = document.createElement('li');
+      const name = row.player || 'Anónimo';
+      const diff = row.difficulty || 'medio';
+      const scoreTxt = row.score ?? 0;
+      const acc = row.total ? Math.round((row.correct||0)/row.total*100) : 0;
+      li.textContent = `${name} — ${scoreTxt} pts — ${acc}% acierto — ${diff}`;
+      ol.appendChild(li);
+    });
+  rankingContainer.appendChild(ol);
+}
+
+// =============================
+// Eventos
+// =============================
+startButton?.addEventListener('click', startGame);
+submitButton?.addEventListener('click', submitAnswer);
+answerInput?.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitAnswer(); });
+restartButton?.addEventListener('click', () => { location.reload(); });
+
+// Cargar ranking al inicio (si ya hay backend)
+loadRankingFromSheets();
