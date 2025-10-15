@@ -3,83 +3,411 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Juego de Tablas de Multiplicar</title>
+    <title>Juego de Tablas de Multiplicar - Profesional</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --bg-dark: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            --text-light: #ffffff;
+            --text-dark: #333333;
+            --success: #4CAF50;
+            --error: #f44336;
+            --warning: #ff9800;
+            --container-bg: rgba(255, 255, 255, 0.1);
+            --container-dark: rgba(0, 0, 0, 0.3);
+        }
+
         body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 50px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-light);
+            padding: 20px;
+            min-height: 100vh;
+            transition: all 0.3s ease;
         }
-        .game-container {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 20px;
-            padding: 40px;
-            max-width: 500px;
+
+        body.dark-mode {
+            background: var(--bg-dark);
+        }
+
+        .container {
+            max-width: 1200px;
             margin: 0 auto;
-            backdrop-filter: blur(10px);
         }
-        h1 {
+
+        header {
+            text-align: center;
             margin-bottom: 30px;
-            font-size: 2.5em;
         }
-        .question {
-            font-size: 2em;
+
+        h1 {
+            font-size: clamp(2rem, 5vw, 3rem);
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-bottom: 30px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            font-size: 1rem;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: var(--warning);
+            color: white;
+        }
+
+        .btn-dark {
+            background: #424242;
+            color: white;
+        }
+
+        .setup-screen, .game-screen {
+            display: none;
+        }
+
+        .setup-screen.active, .game-screen.active {
+            display: block;
+        }
+
+        .setup-container {
+            background: var(--container-bg);
+            backdrop-filter: blur(10px);
+            padding: 40px;
+            border-radius: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .table-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 10px;
             margin: 30px 0;
         }
-        input {
-            font-size: 1.5em;
-            padding: 10px;
-            width: 150px;
-            border: none;
+
+        .table-option {
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid transparent;
             border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .table-option:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .table-option.selected {
+            background: var(--success);
+            border-color: white;
+            transform: scale(1.05);
+        }
+
+        .game-container {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        @media (max-width: 768px) {
+            .game-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .game-main {
+            background: var(--container-bg);
+            backdrop-filter: blur(10px);
+            padding: 40px;
+            border-radius: 20px;
+        }
+
+        .score-display {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 30px;
+            font-size: 1.3rem;
+            font-weight: bold;
+        }
+
+        .score-item {
             text-align: center;
         }
-        button {
-            font-size: 1.2em;
-            padding: 15px 30px;
-            margin: 10px;
-            border: none;
+
+        .score-number {
+            display: block;
+            font-size: 2rem;
+            margin-top: 10px;
+        }
+
+        .timer {
+            font-size: 1.5rem;
+            text-align: center;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
+        .timer.warning {
+            color: var(--warning);
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .question {
+            font-size: clamp(2rem, 5vw, 3rem);
+            text-align: center;
+            margin: 40px 0;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .answer-input {
+            width: 100%;
+            max-width: 300px;
+            margin: 0 auto;
+            display: block;
+            font-size: 2rem;
+            padding: 15px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
             border-radius: 10px;
-            background: #4CAF50;
-            color: white;
-            cursor: pointer;
-            transition: background 0.3s;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.9);
+            color: var(--text-dark);
         }
-        button:hover {
-            background: #45a049;
+
+        .answer-input:focus {
+            outline: none;
+            border-color: white;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
         }
-        .score {
-            font-size: 1.5em;
-            margin: 20px 0;
-        }
+
         .feedback {
-            font-size: 1.3em;
+            text-align: center;
             margin: 20px 0;
-            min-height: 30px;
+            min-height: 50px;
+            font-size: 1.5rem;
+            font-weight: bold;
         }
-        .correct {
-            color: #4CAF50;
+
+        .correct-animation {
+            animation: correctPulse 0.5s ease;
         }
-        .incorrect {
-            color: #f44336;
+
+        .incorrect-animation {
+            animation: incorrectShake 0.5s ease;
+        }
+
+        @keyframes correctPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); background: rgba(76, 175, 80, 0.3); }
+        }
+
+        @keyframes incorrectShake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        .history-panel {
+            background: var(--container-bg);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 20px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .history-title {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .history-item {
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.95rem;
+            transition: transform 0.2s ease;
+        }
+
+        .history-item:hover {
+            transform: translateX(5px);
+        }
+
+        .history-item.correct {
+            background: rgba(76, 175, 80, 0.3);
+            border-left: 4px solid var(--success);
+        }
+
+        .history-item.incorrect {
+            background: rgba(244, 67, 54, 0.3);
+            border-left: 4px solid var(--error);
+        }
+
+        .history-time {
+            font-size: 0.8rem;
+            opacity: 0.8;
+        }
+
+        /* Scrollbar styling */
+        .history-panel::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .history-panel::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        .history-panel::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+        }
+
+        .history-panel::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        /* Accessibility improvements */
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            margin: -1px;
+            padding: 0;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            border: 0;
+        }
+
+        /* Loading animation */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
-    <div class="game-container">
-        <h1>🎯 Tablas de Multiplicar</h1>
-        <div class="score">
-            <span>Aciertos: <span id="correct">0</span></span> |
-            <span>Errores: <span id="incorrect">0</span></span>
+    <div class="container">
+        <header>
+            <h1>🎯 Juego de Tablas de Multiplicar</h1>
+            <div class="controls">
+                <button class="btn btn-dark" id="darkModeBtn" onclick="toggleDarkMode()">🌙 Modo Oscuro</button>
+                <button class="btn btn-secondary" id="resetBtn" onclick="resetGame()" style="display:none;">🔄 Reiniciar</button>
+            </div>
+        </header>
+
+        <!-- Setup Screen -->
+        <div class="setup-screen active" id="setupScreen">
+            <div class="setup-container">
+                <h2 style="text-align: center; margin-bottom: 20px;">Selecciona las tablas a practicar</h2>
+                <div class="table-selector" id="tableSelector">
+                    <!-- Generated by JavaScript -->
+                </div>
+                <div style="text-align: center; margin-top: 30px;">
+                    <button class="btn btn-primary" onclick="startGame()" style="font-size: 1.2rem; padding: 15px 40px;">Comenzar Juego</button>
+                </div>
+            </div>
         </div>
-        <div class="question" id="question">¿Cuánto es 0 × 0?</div>
-        <input type="number" id="answer" placeholder="Tu respuesta" autofocus>
-        <br><br>
-        <button onclick="checkAnswer()">Comprobar</button>
-        <button onclick="nextQuestion()">Siguiente</button>
-        <div class="feedback" id="feedback"></div>
+
+        <!-- Game Screen -->
+        <div class="game-screen" id="gameScreen">
+            <div class="game-container">
+                <div class="game-main">
+                    <div class="score-display">
+                        <div class="score-item">
+                            <span>✅ Aciertos</span>
+                            <span class="score-number" id="correctScore">0</span>
+                        </div>
+                        <div class="score-item">
+                            <span>❌ Errores</span>
+                            <span class="score-number" id="incorrectScore">0</span>
+                        </div>
+                        <div class="score-item">
+                            <span>📊 Total</span>
+                            <span class="score-number" id="totalScore">0</span>
+                        </div>
+                    </div>
+
+                    <div class="timer" id="timer">⏱️ Tiempo: 30s</div>
+
+                    <div class="question" id="question">¿Cuánto es 0 × 0?</div>
+
+                    <input type="number" class="answer-input" id="answerInput" placeholder="Tu respuesta" autofocus>
+
+                    <div style="text-align: center; margin-top: 30px;">
+                        <button class="btn btn-primary" onclick="checkAnswer()" style="font-size: 1.2rem; padding: 15px 40px;">Comprobar</button>
+                    </div>
+
+                    <div class="feedback" id="feedback"></div>
+                </div>
+
+                <div class="history-panel">
+                    <div class="history-title">📋 Historial de Respuestas</div>
+                    <div id="historyList">
+                        <p style="text-align: center; opacity: 0.7;">No hay respuestas aún...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="script.js"></script>
