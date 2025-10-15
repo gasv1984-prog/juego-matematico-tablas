@@ -1,415 +1,133 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Juego de Tablas de Multiplicar - Profesional</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        :root {
-            --bg-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            --bg-dark: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            --text-light: #ffffff;
-            --text-dark: #333333;
-            --success: #4CAF50;
-            --error: #f44336;
-            --warning: #ff9800;
-            --container-bg: rgba(255, 255, 255, 0.1);
-            --container-dark: rgba(0, 0, 0, 0.3);
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-light);
-            padding: 20px;
-            min-height: 100vh;
-            transition: all 0.3s ease;
-        }
-
-        body.dark-mode {
-            background: var(--bg-dark);
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        h1 {
-            font-size: clamp(2rem, 5vw, 3rem);
-            margin-bottom: 20px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-        }
-
-        .controls {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            flex-wrap: wrap;
-            margin-bottom: 30px;
-        }
-
-        .btn {
-            padding: 12px 24px;
-            font-size: 1rem;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-weight: 600;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
-        }
-
-        .btn:active {
-            transform: translateY(0);
-        }
-
-        .btn-primary {
-            background: var(--success);
-            color: white;
-        }
-
-        .btn-secondary {
-            background: var(--warning);
-            color: white;
-        }
-
-        .btn-dark {
-            background: #424242;
-            color: white;
-        }
-
-        .setup-screen, .game-screen {
-            display: none;
-        }
-
-        .setup-screen.active, .game-screen.active {
-            display: block;
-        }
-
-        .setup-container {
-            background: var(--container-bg);
-            backdrop-filter: blur(10px);
-            padding: 40px;
-            border-radius: 20px;
-            max-width: 600px;
-            margin: 0 auto;
-        }
-
-        .table-selector {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-            gap: 10px;
-            margin: 30px 0;
-        }
-
-        .table-option {
-            padding: 15px;
-            background: rgba(255, 255, 255, 0.2);
-            border: 2px solid transparent;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 1.2rem;
-            font-weight: bold;
-        }
-
-        .table-option:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
-
-        .table-option.selected {
-            background: var(--success);
-            border-color: white;
-            transform: scale(1.05);
-        }
-
-        .game-container {
-            display: grid;
-            grid-template-columns: 1fr 300px;
-            gap: 30px;
-            margin-top: 30px;
-        }
-
-        @media (max-width: 768px) {
-            .game-container {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .game-main {
-            background: var(--container-bg);
-            backdrop-filter: blur(10px);
-            padding: 40px;
-            border-radius: 20px;
-        }
-
-        .score-display {
-            display: flex;
-            justify-content: space-around;
-            margin-bottom: 30px;
-            font-size: 1.3rem;
-            font-weight: bold;
-        }
-
-        .score-item {
-            text-align: center;
-        }
-
-        .score-number {
-            display: block;
-            font-size: 2rem;
-            margin-top: 10px;
-        }
-
-        .timer {
-            font-size: 1.5rem;
-            text-align: center;
-            margin-bottom: 20px;
-            font-weight: bold;
-        }
-
-        .timer.warning {
-            color: var(--warning);
-            animation: pulse 1s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        .question {
-            font-size: clamp(2rem, 5vw, 3rem);
-            text-align: center;
-            margin: 40px 0;
-            min-height: 80px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .answer-input {
-            width: 100%;
-            max-width: 300px;
-            margin: 0 auto;
-            display: block;
-            font-size: 2rem;
-            padding: 15px;
-            border: 3px solid rgba(255, 255, 255, 0.3);
-            border-radius: 10px;
-            text-align: center;
-            background: rgba(255, 255, 255, 0.9);
-            color: var(--text-dark);
-        }
-
-        .answer-input:focus {
-            outline: none;
-            border-color: white;
-            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
-        }
-
-        .feedback {
-            text-align: center;
-            margin: 20px 0;
-            min-height: 50px;
-            font-size: 1.5rem;
-            font-weight: bold;
-        }
-
-        .correct-animation {
-            animation: correctPulse 0.5s ease;
-        }
-
-        .incorrect-animation {
-            animation: incorrectShake 0.5s ease;
-        }
-
-        @keyframes correctPulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); background: rgba(76, 175, 80, 0.3); }
-        }
-
-        @keyframes incorrectShake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-10px); }
-            75% { transform: translateX(10px); }
-        }
-
-        .history-panel {
-            background: var(--container-bg);
-            backdrop-filter: blur(10px);
-            padding: 20px;
-            border-radius: 20px;
-            max-height: 600px;
-            overflow-y: auto;
-        }
-
-        .history-title {
-            font-size: 1.5rem;
-            margin-bottom: 20px;
-            text-align: center;
-            font-weight: bold;
-        }
-
-        .history-item {
-            padding: 12px;
-            margin-bottom: 10px;
-            border-radius: 8px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 0.95rem;
-            transition: transform 0.2s ease;
-        }
-
-        .history-item:hover {
-            transform: translateX(5px);
-        }
-
-        .history-item.correct {
-            background: rgba(76, 175, 80, 0.3);
-            border-left: 4px solid var(--success);
-        }
-
-        .history-item.incorrect {
-            background: rgba(244, 67, 54, 0.3);
-            border-left: 4px solid var(--error);
-        }
-
-        .history-time {
-            font-size: 0.8rem;
-            opacity: 0.8;
-        }
-
-        /* Scrollbar styling */
-        .history-panel::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        .history-panel::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-        }
-
-        .history-panel::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.3);
-            border-radius: 10px;
-        }
-
-        .history-panel::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.5);
-        }
-
-        /* Accessibility improvements */
-        .visually-hidden {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            margin: -1px;
-            padding: 0;
-            overflow: hidden;
-            clip: rect(0, 0, 0, 0);
-            border: 0;
-        }
-
-        /* Loading animation */
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top-color: white;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🎯 Juego de Tablas de Multiplicar - Profesional</title>
+  <style>
+    body { font-family: system-ui, Arial, sans-serif; margin: 0; padding: 0; background: #f7f7fb; color: #222; }
+    header { display:flex; align-items:center; justify-content:space-between; padding: 14px 18px; background:#4f46e5; color:#fff; position:sticky; top:0; z-index:10 }
+    header h1{ font-size:1.1rem; margin:0 }
+    .container{ max-width:920px; margin:18px auto; padding:0 16px }
+    .card{ background:#fff; border-radius:12px; box-shadow:0 6px 18px rgba(0,0,0,.06); padding:18px; margin-bottom:18px }
+    .hidden{ display:none }
+    .controls{ display:flex; gap:12px; flex-wrap:wrap; align-items:center }
+    .table-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(100px,1fr)); gap:8px; margin-top:10px }
+    .table-button{ border:1px solid #cbd5e1; padding:10px; border-radius:10px; background:#f8fafc; cursor:pointer; transition:.2s; text-align:center; }
+    .table-button.active{ background:#e0e7ff; border-color:#4f46e5; font-weight:600 }
+    .stats{ display:flex; gap:12px; flex-wrap:wrap; margin-top:8px; color:#475569 }
+    .badge{ background:#eef2ff; color:#3730a3; padding:4px 8px; border-radius:999px; font-size:.8rem }
+    .feedback{ margin-top:10px; font-weight:600 }
+    .feedback.correct{ color:#16a34a }
+    .feedback.incorrect{ color:#dc2626 }
+    .feedback.warning{ color:#b45309 }
+    .score-box{ display:flex; gap:12px; margin-top:10px }
+    .score-pill{ background:#f1f5f9; border-radius:10px; padding:6px 10px }
+    .progress{ margin-top:6px; font-size:.9rem; color:#475569 }
+    .ranking-list{ display:flex; flex-direction:column; gap:8px; margin-top:10px }
+    .ranking-item{ display:flex; gap:10px; align-items:center; justify-content:space-between; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:10px }
+    .ranking-position{ width:28px; text-align:center }
+    .ranking-name{ font-weight:600 }
+    .ranking-stats{ color:#475569; font-size:.9rem }
+    .actions{ display:flex; gap:10px; margin-top:12px }
+    input, select{ padding:10px; border:1px solid #cbd5e1; border-radius:10px }
+    button.btn{ background:#4f46e5; color:#fff; border:none; padding:10px 14px; border-radius:10px; cursor:pointer }
+    button.btn:disabled{ opacity:.6; cursor:not-allowed }
+    .dark-mode body, body.dark-mode{ background:#0b1020; color:#e5e7eb }
+    body.dark-mode .card{ background:#0f172a; box-shadow:0 6px 18px rgba(0,0,0,.4); border:1px solid #1f2a44 }
+    body.dark-mode .table-button{ background:#0b1229; border-color:#1f2a44; color:#e5e7eb }
+    body.dark-mode .table-button.active{ background:#172554; border-color:#60a5fa }
+    body.dark-mode .ranking-item{ background:#0b1229; border-color:#1f2a44 }
+    .visually-hidden{ position:absolute; left:-9999px }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>🎯 Juego de Tablas de Multiplicar</h1>
-            <div class="controls">
-                <button class="btn btn-dark" id="darkModeBtn" onclick="toggleDarkMode()">🌙 Modo Oscuro</button>
-                <button class="btn btn-secondary" id="resetBtn" onclick="resetGame()" style="display:none;">🔄 Reiniciar</button>
-            </div>
-        </header>
+  <header>
+    <h1>🎯 Juego de Tablas de Multiplicar</h1>
+    <button id="dark-mode-toggle" class="btn" title="Cambiar tema">🌙 Modo Oscuro</button>
+  </header>
 
-        <!-- Setup Screen -->
-        <div class="setup-screen active" id="setupScreen">
-            <div class="setup-container">
-                <h2 style="text-align: center; margin-bottom: 20px;">Selecciona las tablas a practicar</h2>
-                <div class="table-selector" id="tableSelector">
-                    <!-- Generated by JavaScript -->
-                </div>
-                <div style="text-align: center; margin-top: 30px;">
-                    <button class="btn btn-primary" onclick="startGame()" style="font-size: 1.2rem; padding: 15px 40px;">Comenzar Juego</button>
-                </div>
-            </div>
-        </div>
+  <main class="container">
+    <section id="setup-screen" class="card">
+      <h2>Selecciona las tablas a practicar</h2>
+      <div class="controls">
+        <input id="player-name" placeholder="Nombre del estudiante" />
+        <select id="difficulty-select" title="Dificultad">
+          <option value="facil">Fácil (1-5)</option>
+          <option value="medio" selected>Medio (1-10)</option>
+          <option value="dificil">Difícil (1-12)</option>
+          <option value="muy-dificil">Muy Difícil (1-15)</option>
+        </select>
+        <button id="start-button" class="btn" disabled>Comenzar Juego</button>
+      </div>
+      <div class="table-grid" id="tables">
+        <button class="table-button" data-table="1">Tabla 1</button>
+        <button class="table-button" data-table="2">Tabla 2</button>
+        <button class="table-button" data-table="3">Tabla 3</button>
+        <button class="table-button" data-table="4">Tabla 4</button>
+        <button class="table-button" data-table="5">Tabla 5</button>
+        <button class="table-button" data-table="6">Tabla 6</button>
+        <button class="table-button" data-table="7">Tabla 7</button>
+        <button class="table-button" data-table="8">Tabla 8</button>
+        <button class="table-button" data-table="9">Tabla 9</button>
+        <button class="table-button" data-table="10">Tabla 10</button>
+        <button class="table-button" data-table="11">Tabla 11</button>
+        <button class="table-button" data-table="12">Tabla 12</button>
+      </div>
 
-        <!-- Game Screen -->
-        <div class="game-screen" id="gameScreen">
-            <div class="game-container">
-                <div class="game-main">
-                    <div class="score-display">
-                        <div class="score-item">
-                            <span>✅ Aciertos</span>
-                            <span class="score-number" id="correctScore">0</span>
-                        </div>
-                        <div class="score-item">
-                            <span>❌ Errores</span>
-                            <span class="score-number" id="incorrectScore">0</span>
-                        </div>
-                        <div class="score-item">
-                            <span>📊 Total</span>
-                            <span class="score-number" id="totalScore">0</span>
-                        </div>
-                    </div>
+      <div class="card">
+        <h3>🏆 Ranking de Jugadores</h3>
+        <div id="ranking-container"></div>
+      </div>
+    </section>
 
-                    <div class="timer" id="timer">⏱️ Tiempo: 30s</div>
+    <section id="game-screen" class="card hidden">
+      <h2 id="question">Pregunta</h2>
+      <input id="answer" type="number" placeholder="Tu respuesta" />
+      <div class="actions">
+        <button id="submit" class="btn">Comprobar</button>
+      </div>
+      <div id="feedback" class="feedback"></div>
+      <div class="score-box">
+        <div class="score-pill">✅ Aciertos: <span id="score">0</span></div>
+        <div class="score-pill">❌ Errores: <span id="incorrect">0</span></div>
+        <div class="score-pill">🔢 Total: <span id="total">0</span></div>
+      </div>
+      <div id="progress" class="progress">Pregunta 0 de 10</div>
+    </section>
 
-                    <div class="question" id="question">¿Cuánto es 0 × 0?</div>
+    <section id="results-screen" class="card hidden">
+      <h2>Resultados</h2>
+      <div class="stats">
+        <span class="badge">Puntaje: <strong id="final-score">0</strong></span>
+        <span class="badge">Aciertos: <strong id="final-correct">0</strong></span>
+        <span class="badge">Errores: <strong id="final-incorrect">0</strong></span>
+      </div>
+      <div id="motivational-message" class="card"></div>
+      <div class="actions">
+        <button id="restart" class="btn">Volver a Jugar</button>
+      </div>
 
-                    <input type="number" class="answer-input" id="answerInput" placeholder="Tu respuesta" autofocus>
+      <div class="card">
+        <h3>🏆 Ranking de Jugadores</h3>
+        <div id="ranking-container-duplicate"></div>
+      </div>
+    </section>
+  </main>
 
-                    <div style="text-align: center; margin-top: 30px;">
-                        <button class="btn btn-primary" onclick="checkAnswer()" style="font-size: 1.2rem; padding: 15px 40px;">Comprobar</button>
-                    </div>
-
-                    <div class="feedback" id="feedback"></div>
-                </div>
-
-                <div class="history-panel">
-                    <div class="history-title">📋 Historial de Respuestas</div>
-                    <div id="historyList">
-                        <p style="text-align: center; opacity: 0.7;">No hay respuestas aún...</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script src="script.js"></script>
+  <script src="script.js"></script>
+  <script>
+    // Soporte para mostrar ranking en pantalla de resultados también
+    document.addEventListener('DOMContentLoaded', () => {
+      const dup = document.getElementById('ranking-container-duplicate');
+      const main = document.getElementById('ranking-container');
+      if (dup && main) {
+        const observer = new MutationObserver(() => {
+          dup.innerHTML = main.innerHTML;
+        });
+        observer.observe(main, { childList: true, subtree: true });
+      }
+    });
+  </script>
 </body>
 </html>
