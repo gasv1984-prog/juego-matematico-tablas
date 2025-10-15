@@ -9,6 +9,10 @@
   <!-- Este script carga el widget oficial de Google para compartir en Classroom -->
   <script src="https://apis.google.com/js/platform.js" async defer></script>
   
+  <!-- jsPDF Library para generar PDFs -->
+  <!-- Librería ligera para crear documentos PDF en el navegador -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  
   <style>
     body { font-family: system-ui, Arial, sans-serif; margin: 0; padding: 0; background: #f7f7fb; color: #222; }
     header { display:flex; align-items:center; justify-content:space-between; padding: 14px 18px; background:#4f46e5; color:#fff; position:sticky; top:0; z-index:10 }
@@ -38,6 +42,9 @@
     input, select{ padding:10px; border:1px solid #cbd5e1; border-radius:10px }
     button.btn{ background:#4f46e5; color:#fff; border:none; padding:10px 14px; border-radius:10px; cursor:pointer }
     button.btn:disabled{ opacity:.6; cursor:not-allowed }
+    /* Botón de PDF con estilo especial */
+    button.btn-pdf{ background:#16a34a; color:#fff; border:none; padding:10px 14px; border-radius:10px; cursor:pointer; font-weight:600 }
+    button.btn-pdf:hover{ background:#15803d }
     .dark-mode body, body.dark-mode{ background:#0b1020; color:#e5e7eb }
     body.dark-mode .card{ background:#0f172a; box-shadow:0 6px 18px rgba(0,0,0,.4); border:1px solid #1f2a44 }
     body.dark-mode .table-button{ background:#0b1229; border-color:#1f2a44; color:#e5e7eb }
@@ -71,7 +78,7 @@
       </div>
       
       <div class="controls">
-        <input id="player-name" placeholder="Nombre del estudiante"/>
+        <input id="player-name" placeholder="Nombre del estudiante" />
         <select id="difficulty-select" title="Dificultad">
           <option value="facil">Fácil (1-5)</option>
           <option value="medio" selected>Medio (1-10)</option>
@@ -102,7 +109,7 @@
     <!-- Pantalla del juego -->
     <section class="card hidden" id="game-screen">
       <h2 id="question">Pregunta</h2>
-      <input id="answer" placeholder="Tu respuesta" type="number"/>
+      <input id="answer" type="number" placeholder="Tu respuesta" />
       <div class="actions">
         <button class="btn" id="submit">Comprobar</button>
       </div>
@@ -135,6 +142,9 @@
       <div class="card" id="motivational-message"></div>
       <div class="actions">
         <button class="btn" id="restart">Volver a Jugar</button>
+        <!-- Botón para descargar resultados en PDF -->
+        <!-- Genera un documento PDF con todos los detalles de la partida -->
+        <button class="btn btn-pdf" id="download-pdf">📄 Descargar Resultados en PDF</button>
       </div>
       <div class="card">
         <h3>🏆 Ranking de Jugadores</h3>
