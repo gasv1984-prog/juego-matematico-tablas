@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego de Tablas de Multiplicar</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 50px;
+        }
+        .game-container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 500px;
+            margin: 0 auto;
+            backdrop-filter: blur(10px);
+        }
+        h1 {
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        .question {
+            font-size: 2em;
+            margin: 30px 0;
+        }
+        input {
+            font-size: 1.5em;
+            padding: 10px;
+            width: 150px;
+            border: none;
+            border-radius: 10px;
+            text-align: center;
+        }
+        button {
+            font-size: 1.2em;
+            padding: 15px 30px;
+            margin: 10px;
+            border: none;
+            border-radius: 10px;
+            background: #4CAF50;
+            color: white;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .score {
+            font-size: 1.5em;
+            margin: 20px 0;
+        }
+        .feedback {
+            font-size: 1.3em;
+            margin: 20px 0;
+            min-height: 30px;
+        }
+        .correct {
+            color: #4CAF50;
+        }
+        .incorrect {
+            color: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>🎯 Tablas de Multiplicar</h1>
+        <div class="score">
+            <span>Aciertos: <span id="correct">0</span></span> |
+            <span>Errores: <span id="incorrect">0</span></span>
+        </div>
+        <div class="question" id="question">¿Cuánto es 0 × 0?</div>
+        <input type="number" id="answer" placeholder="Tu respuesta" autofocus>
+        <br><br>
+        <button onclick="checkAnswer()">Comprobar</button>
+        <button onclick="nextQuestion()">Siguiente</button>
+        <div class="feedback" id="feedback"></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
