@@ -1,332 +1,325 @@
 // Game state variables
-let num1, num2, correctAnswer;
-let correctCount = 0;
+let currentQuestion = {};
+let score = 0;
 let incorrectCount = 0;
+let correctCount = 0;
 let totalCount = 0;
 let selectedTables = [];
-let gameHistory = [];
-let timerInterval;
-let timeRemaining = 30;
-const QUESTION_TIME = 30; // seconds per question
+let questionCount = 0;
+let maxQuestions = 10;
+let isDarkMode = false;
+let startTime = null;
+let playerName = '';
+let difficulty = 'medio';
+let difficultyMultipliers = { facil: 5, medio: 10, dificil: 12, 'muy-dificil': 15 };
 
-// Initialize on page load
-window.addEventListener('DOMContentLoaded', function() {
-    initializeTableSelector();
-    loadDarkModePreference();
-    setupEventListeners();
-});
+// DOM Elements
+const setupScreen = document.getElementById('setup-screen');
+const gameScreen = document.getElementById('game-screen');
+const resultsScreen = document.getElementById('results-screen');
+const questionElement = document.getElementById('question');
+const answerInput = document.getElementById('answer');
+const feedbackElement = document.getElementById('feedback');
+const scoreElement = document.getElementById('score');
+const incorrectElement = document.getElementById('incorrect');
+const totalElement = document.getElementById('total');
+const progressElement = document.getElementById('progress');
+const finalScoreElement = document.getElementById('final-score');
+const finalCorrectElement = document.getElementById('final-correct');
+const finalIncorrectElement = document.getElementById('final-incorrect');
+const startButton = document.getElementById('start-button');
+const submitButton = document.getElementById('submit');
+const restartButton = document.getElementById('restart');
+const darkModeToggle = document.getElementById('dark-mode-toggle');
+const playerNameInput = document.getElementById('player-name');
+const difficultySelect = document.getElementById('difficulty-select');
+const rankingContainer = document.getElementById('ranking-container');
+const motivationalMessage = document.getElementById('motivational-message');
 
-// Initialize table selector with all multiplication tables
-function initializeTableSelector() {
-    const selector = document.getElementById('tableSelector');
-    for (let i = 1; i <= 10; i++) {
-        const option = document.createElement('div');
-        option.className = 'table-option';
-        option.textContent = `Tabla del ${i}`;
-        option.dataset.table = i;
-        option.addEventListener('click', function() {
-            toggleTableSelection(this);
-        });
-        selector.appendChild(option);
-    }
+// LocalStorage functions
+function getPlayerData() {
+    const data = localStorage.getItem('multiplicationGameData');
+    return data ? JSON.parse(data) : { players: [] };
 }
 
-// Toggle table selection
-function toggleTableSelection(element) {
-    const tableNum = parseInt(element.dataset.table);
-    element.classList.toggle('selected');
-    
-    if (element.classList.contains('selected')) {
-        selectedTables.push(tableNum);
-    } else {
-        selectedTables = selectedTables.filter(t => t !== tableNum);
-    }
+function savePlayerData(data) {
+    localStorage.setItem('multiplicationGameData', JSON.stringify(data));
 }
 
-// Setup event listeners
-function setupEventListeners() {
-    const answerInput = document.getElementById('answerInput');
-    if (answerInput) {
-        answerInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                checkAnswer();
-            }
-        });
-    }
-}
-
-// Start the game
-function startGame() {
-    if (selectedTables.length === 0) {
-        alert('¡Por favor selecciona al menos una tabla para practicar!');
-        return;
-    }
+function saveGameResult(playerName, score, correct, incorrect, total, difficulty, duration) {
+    const data = getPlayerData();
+    const player = data.players.find(p => p.name === playerName);
     
-    // Reset game state
-    correctCount = 0;
-    incorrectCount = 0;
-    totalCount = 0;
-    gameHistory = [];
-    
-    // Switch screens
-    document.getElementById('setupScreen').classList.remove('active');
-    document.getElementById('gameScreen').classList.add('active');
-    document.getElementById('resetBtn').style.display = 'inline-block';
-    
-    // Start first question
-    updateScoreDisplay();
-    generateQuestion();
-}
-
-// Generate a new question
-function generateQuestion() {
-    // Stop any existing timer
-    if (timerInterval) {
-        clearInterval(timerInterval);
-    }
-    
-    // Select random table from selected tables
-    const randomTable = selectedTables[Math.floor(Math.random() * selectedTables.length)];
-    num1 = randomTable;
-    num2 = Math.floor(Math.random() * 10) + 1;
-    correctAnswer = num1 * num2;
-    
-    // Update question display
-    document.getElementById('question').textContent = `¿Cuánto es ${num1} × ${num2}?`;
-    document.getElementById('answerInput').value = '';
-    document.getElementById('feedback').textContent = '';
-    document.getElementById('answerInput').focus();
-    
-    // Remove any animation classes
-    const gameMain = document.querySelector('.game-main');
-    gameMain.classList.remove('correct-animation', 'incorrect-animation');
-    
-    // Start timer
-    timeRemaining = QUESTION_TIME;
-    updateTimerDisplay();
-    timerInterval = setInterval(updateTimer, 1000);
-}
-
-// Update timer
-function updateTimer() {
-    timeRemaining--;
-    updateTimerDisplay();
-    
-    if (timeRemaining <= 0) {
-        clearInterval(timerInterval);
-        handleTimeout();
-    }
-}
-
-// Update timer display
-function updateTimerDisplay() {
-    const timerElement = document.getElementById('timer');
-    timerElement.textContent = `⏱️ Tiempo: ${timeRemaining}s`;
-    
-    if (timeRemaining <= 5) {
-        timerElement.classList.add('warning');
-    } else {
-        timerElement.classList.remove('warning');
-    }
-}
-
-// Handle timeout
-function handleTimeout() {
-    const answerInput = document.getElementById('answerInput');
-    answerInput.disabled = true;
-    
-    const feedback = document.getElementById('feedback');
-    feedback.textContent = `⏰ ¡Tiempo agotado! La respuesta correcta era ${correctAnswer}`;
-    feedback.style.color = '#ff9800';
-    
-    incorrectCount++;
-    totalCount++;
-    
-    addToHistory(num1, num2, 'Tiempo agotado', correctAnswer, false);
-    updateScoreDisplay();
-    
-    setTimeout(() => {
-        answerInput.disabled = false;
-        generateQuestion();
-    }, 2000);
-}
-
-// Check answer
-function checkAnswer() {
-    const userAnswer = parseInt(document.getElementById('answerInput').value);
-    
-    if (isNaN(userAnswer)) {
-        alert('¡Por favor ingresa un número!');
-        return;
-    }
-    
-    // Clear timer
-    clearInterval(timerInterval);
-    
-    const feedback = document.getElementById('feedback');
-    const gameMain = document.querySelector('.game-main');
-    
-    totalCount++;
-    
-    if (userAnswer === correctAnswer) {
-        // Correct answer
-        correctCount++;
-        feedback.textContent = '✅ ¡Correcto! ¡Excelente trabajo!';
-        feedback.style.color = '#4CAF50';
-        gameMain.classList.add('correct-animation');
-        addToHistory(num1, num2, userAnswer, correctAnswer, true);
-    } else {
-        // Incorrect answer
-        incorrectCount++;
-        feedback.textContent = `❌ Incorrecto. La respuesta correcta es ${correctAnswer}`;
-        feedback.style.color = '#f44336';
-        gameMain.classList.add('incorrect-animation');
-        addToHistory(num1, num2, userAnswer, correctAnswer, false);
-    }
-    
-    updateScoreDisplay();
-    
-    // Generate next question after delay
-    setTimeout(() => {
-        generateQuestion();
-    }, 2000);
-}
-
-// Add to history
-function addToHistory(n1, n2, userAns, correctAns, isCorrect) {
-    const historyItem = {
-        question: `${n1} × ${n2}`,
-        userAnswer: userAns,
-        correctAnswer: correctAns,
-        isCorrect: isCorrect,
-        timestamp: new Date().toLocaleTimeString()
+    const gameResult = {
+        date: new Date().toISOString(),
+        score,
+        correct,
+        incorrect,
+        total,
+        difficulty,
+        duration,
+        percentage: Math.round((correct / total) * 100)
     };
     
-    gameHistory.unshift(historyItem); // Add to beginning
-    updateHistoryDisplay();
-}
-
-// Update history display
-function updateHistoryDisplay() {
-    const historyList = document.getElementById('historyList');
-    
-    if (gameHistory.length === 0) {
-        historyList.innerHTML = '<p style="text-align: center; opacity: 0.7;">No hay respuestas aún...</p>';
-        return;
-    }
-    
-    historyList.innerHTML = '';
-    
-    // Show last 20 items
-    const itemsToShow = gameHistory.slice(0, 20);
-    
-    itemsToShow.forEach(item => {
-        const historyItem = document.createElement('div');
-        historyItem.className = `history-item ${item.isCorrect ? 'correct' : 'incorrect'}`;
-        
-        const questionSpan = document.createElement('span');
-        questionSpan.textContent = `${item.question} = ${item.correctAnswer}`;
-        
-        const answerSpan = document.createElement('span');
-        if (item.isCorrect) {
-            answerSpan.innerHTML = `✅ ${item.userAnswer}`;
-        } else {
-            answerSpan.innerHTML = `❌ ${item.userAnswer}`;
-        }
-        
-        const timeSpan = document.createElement('div');
-        timeSpan.className = 'history-time';
-        timeSpan.textContent = item.timestamp;
-        
-        const leftDiv = document.createElement('div');
-        leftDiv.appendChild(questionSpan);
-        leftDiv.appendChild(timeSpan);
-        
-        historyItem.appendChild(leftDiv);
-        historyItem.appendChild(answerSpan);
-        
-        historyList.appendChild(historyItem);
-    });
-}
-
-// Update score display
-function updateScoreDisplay() {
-    document.getElementById('correctScore').textContent = correctCount;
-    document.getElementById('incorrectScore').textContent = incorrectCount;
-    document.getElementById('totalScore').textContent = totalCount;
-    
-    // Animate score update
-    const scoreNumbers = document.querySelectorAll('.score-number');
-    scoreNumbers.forEach(num => {
-        num.style.transform = 'scale(1.2)';
-        setTimeout(() => {
-            num.style.transform = 'scale(1)';
-        }, 200);
-    });
-}
-
-// Reset game
-function resetGame() {
-    if (!confirm('¿Estás seguro de que quieres reiniciar el juego y el historial?')) {
-        return;
-    }
-    
-    // Clear timer
-    if (timerInterval) {
-        clearInterval(timerInterval);
-    }
-    
-    // Reset all variables
-    correctCount = 0;
-    incorrectCount = 0;
-    totalCount = 0;
-    gameHistory = [];
-    selectedTables = [];
-    
-    // Clear table selections
-    document.querySelectorAll('.table-option').forEach(option => {
-        option.classList.remove('selected');
-    });
-    
-    // Switch back to setup screen
-    document.getElementById('gameScreen').classList.remove('active');
-    document.getElementById('setupScreen').classList.add('active');
-    document.getElementById('resetBtn').style.display = 'none';
-}
-
-// Toggle dark mode
-function toggleDarkMode() {
-    document.body.classList.toggle('dark-mode');
-    const isDark = document.body.classList.contains('dark-mode');
-    
-    const btn = document.getElementById('darkModeBtn');
-    if (isDark) {
-        btn.textContent = '☀️ Modo Claro';
-        localStorage.setItem('darkMode', 'enabled');
+    if (player) {
+        player.games.push(gameResult);
+        player.totalGames++;
+        player.bestScore = Math.max(player.bestScore, score);
+        player.totalCorrect += correct;
+        player.totalQuestions += total;
     } else {
-        btn.textContent = '🌙 Modo Oscuro';
-        localStorage.setItem('darkMode', 'disabled');
+        data.players.push({
+            name: playerName,
+            games: [gameResult],
+            totalGames: 1,
+            bestScore: score,
+            totalCorrect: correct,
+            totalQuestions: total
+        });
     }
+    
+    savePlayerData(data);
 }
 
-// Load dark mode preference
-function loadDarkModePreference() {
-    const darkMode = localStorage.getItem('darkMode');
-    if (darkMode === 'enabled') {
-        document.body.classList.add('dark-mode');
-        const btn = document.getElementById('darkModeBtn');
-        if (btn) {
-            btn.textContent = '☀️ Modo Claro';
+function displayRanking() {
+    const data = getPlayerData();
+    const sortedPlayers = data.players
+        .sort((a, b) => b.bestScore - a.bestScore)
+        .slice(0, 10);
+    
+    if (sortedPlayers.length === 0) {
+        rankingContainer.innerHTML = '<p class="no-ranking">🏆 Aún no hay jugadores en el ranking. ¡Sé el primero!</p>';
+        return;
+    }
+    
+    let rankingHTML = '<h3>🏆 Top 10 Jugadores</h3><div class="ranking-list">';
+    sortedPlayers.forEach((player, index) => {
+        const avgPercentage = Math.round((player.totalCorrect / player.totalQuestions) * 100);
+        const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
+        rankingHTML += `
+            <div class="ranking-item">
+                <span class="ranking-position">${medal}</span>
+                <span class="ranking-name">${player.name}</span>
+                <span class="ranking-stats">
+                    Mejor: ${player.bestScore} pts | Promedio: ${avgPercentage}% | Juegos: ${player.totalGames}
+                </span>
+            </div>
+        `;
+    });
+    rankingHTML += '</div>';
+    rankingContainer.innerHTML = rankingHTML;
+}
+
+function getMotivationalMessage(percentage, playerName) {
+    const data = getPlayerData();
+    const player = data.players.find(p => p.name === playerName);
+    
+    let message = '';
+    let tips = '';
+    
+    if (percentage === 100) {
+        message = `🌟 ¡PERFECTO, ${playerName}! ¡Has demostrado ser un maestro de las multiplicaciones!`;
+        tips = '💡 Consejo: ¡Intenta aumentar la dificultad para un mayor desafío!';
+    } else if (percentage >= 90) {
+        message = `🎉 ¡Excelente trabajo, ${playerName}! Estás muy cerca de la perfección.`;
+        tips = '💡 Consejo: Repasa las tablas donde fallaste para lograr el 100%.';
+    } else if (percentage >= 75) {
+        message = `👍 ¡Muy bien, ${playerName}! Vas por buen camino.`;
+        tips = '💡 Consejo: Practica las tablas más difíciles un poco más cada día.';
+    } else if (percentage >= 50) {
+        message = `💪 ¡Sigue esforzándote, ${playerName}! Cada intento te hace mejor.`;
+        tips = '💡 Consejo: Intenta memorizar las tablas que más se te dificultan. ¡Tú puedes!';
+    } else {
+        message = `🌱 No te desanimes, ${playerName}. Todos empezamos desde abajo.`;
+        tips = '💡 Consejo: Empieza con una dificultad más fácil y practica todos los días.';
+    }
+    
+    if (player && player.totalGames > 1) {
+        const lastGame = player.games[player.games.length - 2];
+        if (percentage > lastGame.percentage) {
+            message += ` <br><strong>📈 ¡Mejoraste ${Math.round(percentage - lastGame.percentage)}% desde tu último juego!</strong>`;
         }
     }
+    
+    return `${message}<br><br>${tips}`;
 }
 
-// Add smooth transitions
-document.addEventListener('DOMContentLoaded', function() {
-    document.body.style.transition = 'all 0.3s ease';
+function initializeDarkMode() {
+    const savedMode = localStorage.getItem('darkMode');
+    if (savedMode === 'true') {
+        isDarkMode = true;
+        document.body.classList.add('dark-mode');
+    }
+}
+
+darkModeToggle.addEventListener('click', () => {
+    isDarkMode = !isDarkMode;
+    document.body.classList.toggle('dark-mode');
+    localStorage.setItem('darkMode', isDarkMode);
 });
 
-// Accessibility: Announce score changes for screen readers
+const tableButtons = document.querySelectorAll('.table-button');
+tableButtons.forEach(button => {
+    button.addEventListener('click', () => {
+        button.classList.toggle('active');
+        updateSelectedTables();
+    });
+});
+
+function updateSelectedTables() {
+    selectedTables = [];
+    tableButtons.forEach(button => {
+        if (button.classList.contains('active')) {
+            selectedTables.push(parseInt(button.dataset.table));
+        }
+    });
+    startButton.disabled = selectedTables.length === 0 || !playerNameInput.value.trim();
+}
+
+playerNameInput.addEventListener('input', () => {
+    updateSelectedTables();
+});
+
+difficultySelect.addEventListener('change', (e) => {
+    difficulty = e.target.value;
+});
+
+startButton.addEventListener('click', startGame);
+
+function startGame() {
+    playerName = playerNameInput.value.trim();
+    if (selectedTables.length === 0 || !playerName) {
+        alert('Por favor, ingresa tu nombre y selecciona al menos una tabla.');
+        return;
+    }
+    
+    score = 0;
+    incorrectCount = 0;
+    correctCount = 0;
+    totalCount = 0;
+    questionCount = 0;
+    startTime = Date.now();
+    
+    setupScreen.classList.add('hidden');
+    gameScreen.classList.remove('hidden');
+    resultsScreen.classList.add('hidden');
+    
+    nextQuestion();
+}
+
+function generateQuestion() {
+    const table = selectedTables[Math.floor(Math.random() * selectedTables.length)];
+    const multiplier = Math.floor(Math.random() * difficultyMultipliers[difficulty]) + 1;
+    return {
+        num1: table,
+        num2: multiplier,
+        answer: table * multiplier
+    };
+}
+
+function nextQuestion() {
+    if (questionCount >= maxQuestions) {
+        endGame();
+        return;
+    }
+    
+    currentQuestion = generateQuestion();
+    questionCount++;
+    
+    questionElement.textContent = `${currentQuestion.num1} × ${currentQuestion.num2} = ?`;
+    answerInput.value = '';
+    answerInput.focus();
+    feedbackElement.textContent = '';
+    feedbackElement.className = 'feedback';
+    
+    updateProgress();
+}
+
+function updateProgress() {
+    progressElement.textContent = `Pregunta ${questionCount} de ${maxQuestions}`;
+}
+
+function updateScore() {
+    scoreElement.textContent = correctCount;
+    incorrectElement.textContent = incorrectCount;
+    totalElement.textContent = totalCount;
+    announceScore();
+}
+
+submitButton.addEventListener('click', checkAnswer);
+answerInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        checkAnswer();
+    }
+});
+
+function checkAnswer() {
+    const userAnswer = parseInt(answerInput.value);
+    
+    if (isNaN(userAnswer)) {
+        feedbackElement.textContent = '⚠️ Por favor, ingresa un número válido';
+        feedbackElement.className = 'feedback warning';
+        return;
+    }
+    
+    totalCount++;
+    
+    if (userAnswer === currentQuestion.answer) {
+        correctCount++;
+        score += 10;
+        feedbackElement.textContent = '✅ ¡Correcto! ¡Excelente!';
+        feedbackElement.className = 'feedback correct';
+    } else {
+        incorrectCount++;
+        feedbackElement.textContent = `❌ Incorrecto. La respuesta correcta es ${currentQuestion.answer}`;
+        feedbackElement.className = 'feedback incorrect';
+    }
+    
+    updateScore();
+    
+    setTimeout(() => {
+        nextQuestion();
+    }, 1500);
+}
+
+function endGame() {
+    const duration = Math.round((Date.now() - startTime) / 1000);
+    const percentage = Math.round((correctCount / totalCount) * 100);
+    
+    saveGameResult(playerName, score, correctCount, incorrectCount, totalCount, difficulty, duration);
+    
+    gameScreen.classList.add('hidden');
+    resultsScreen.classList.remove('hidden');
+    
+    finalScoreElement.textContent = score;
+    finalCorrectElement.textContent = correctCount;
+    finalIncorrectElement.textContent = incorrectCount;
+    
+    motivationalMessage.innerHTML = getMotivationalMessage(percentage, playerName);
+    
+    displayRanking();
+}
+
+restartButton.addEventListener('click', () => {
+    resultsScreen.classList.add('hidden');
+    setupScreen.classList.remove('hidden');
+    
+    tableButtons.forEach(button => button.classList.remove('active'));
+    selectedTables = [];
+    playerNameInput.value = '';
+    difficultySelect.value = 'medio';
+    difficulty = 'medio';
+    startButton.disabled = true;
+    
+    displayRanking();
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.body.style.transition = 'all 0.3s ease';
+    initializeDarkMode();
+    displayRanking();
+});
+
 function announceScore() {
     const announcement = `Aciertos: ${correctCount}, Errores: ${incorrectCount}, Total: ${totalCount}`;
     const srOnly = document.createElement('div');
