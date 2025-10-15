@@ -4,6 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>🎯 Juego de Tablas de Multiplicar - Profesional</title>
+  
+  <!-- Google Classroom Share Button Script -->
+  <!-- Este script carga el widget oficial de Google para compartir en Classroom -->
+  <script src="https://apis.google.com/js/platform.js" async defer></script>
+  
   <style>
     body { font-family: system-ui, Arial, sans-serif; margin: 0; padding: 0; background: #f7f7fb; color: #222; }
     header { display:flex; align-items:center; justify-content:space-between; padding: 14px 18px; background:#4f46e5; color:#fff; position:sticky; top:0; z-index:10 }
@@ -39,26 +44,41 @@
     body.dark-mode .table-button.active{ background:#172554; border-color:#60a5fa }
     body.dark-mode .ranking-item{ background:#0b1229; border-color:#1f2a44 }
     .visually-hidden{ position:absolute; left:-9999px }
+    
+    /* Estilos para el botón de Google Classroom */
+    /* Contenedor del botón de compartir para mantenerlo visible y accesible */
+    .classroom-share-container { margin: 12px 0; display: inline-block; }
   </style>
 </head>
 <body>
   <header>
     <h1>🎯 Juego de Tablas de Multiplicar</h1>
-    <button id="dark-mode-toggle" class="btn" title="Cambiar tema">🌙 Modo Oscuro</button>
+    <button class="btn" id="dark-mode-toggle" title="Cambiar tema">🌙 Modo Oscuro</button>
   </header>
-
   <main class="container">
-    <section id="setup-screen" class="card">
+    <!-- Pantalla de inicio -->
+    <section class="card" id="setup-screen">
       <h2>Selecciona las tablas a practicar</h2>
+      
+      <!-- Botón de compartir en Google Classroom - Inicio -->
+      <!-- Widget oficial de Google para compartir este juego en Classroom -->
+      <!-- data-url: URL del juego | data-title: Título que aparecerá en Classroom -->
+      <div class="classroom-share-container">
+        <div class="g-sharetoclassroom" 
+             data-url="https://gasv1984-prog.github.io/juego-matematico-tablas/" 
+             data-title="🎯 Juego de Tablas de Multiplicar"
+             data-body="Practica las tablas de multiplicar de forma interactiva y divertida."></div>
+      </div>
+      
       <div class="controls">
-        <input id="player-name" placeholder="Nombre del estudiante" />
+        <input id="player-name" placeholder="Nombre del estudiante"/>
         <select id="difficulty-select" title="Dificultad">
           <option value="facil">Fácil (1-5)</option>
           <option value="medio" selected>Medio (1-10)</option>
           <option value="dificil">Difícil (1-12)</option>
           <option value="muy-dificil">Muy Difícil (1-15)</option>
         </select>
-        <button id="start-button" class="btn" disabled>Comenzar Juego</button>
+        <button class="btn" id="start-button" disabled>Comenzar Juego</button>
       </div>
       <div class="table-grid" id="tables">
         <button class="table-button" data-table="1">Tabla 1</button>
@@ -74,47 +94,54 @@
         <button class="table-button" data-table="11">Tabla 11</button>
         <button class="table-button" data-table="12">Tabla 12</button>
       </div>
-
       <div class="card">
         <h3>🏆 Ranking de Jugadores</h3>
         <div id="ranking-container"></div>
       </div>
     </section>
-
-    <section id="game-screen" class="card hidden">
+    <!-- Pantalla del juego -->
+    <section class="card hidden" id="game-screen">
       <h2 id="question">Pregunta</h2>
-      <input id="answer" type="number" placeholder="Tu respuesta" />
+      <input id="answer" placeholder="Tu respuesta" type="number"/>
       <div class="actions">
-        <button id="submit" class="btn">Comprobar</button>
+        <button class="btn" id="submit">Comprobar</button>
       </div>
-      <div id="feedback" class="feedback"></div>
+      <div class="feedback" id="feedback"></div>
       <div class="score-box">
         <div class="score-pill">✅ Aciertos: <span id="score">0</span></div>
         <div class="score-pill">❌ Errores: <span id="incorrect">0</span></div>
         <div class="score-pill">🔢 Total: <span id="total">0</span></div>
       </div>
-      <div id="progress" class="progress">Pregunta 0 de 10</div>
+      <div class="progress" id="progress">Pregunta 0 de 10</div>
     </section>
-
-    <section id="results-screen" class="card hidden">
+    <!-- Pantalla de resultados -->
+    <section class="card hidden" id="results-screen">
       <h2>Resultados</h2>
+      
+      <!-- Botón de compartir en Google Classroom - Resultados -->
+      <!-- Permite compartir el juego después de completarlo -->
+      <div class="classroom-share-container">
+        <div class="g-sharetoclassroom" 
+             data-url="https://gasv1984-prog.github.io/juego-matematico-tablas/" 
+             data-title="🎯 Juego de Tablas de Multiplicar"
+             data-body="Practica las tablas de multiplicar de forma interactiva y divertida."></div>
+      </div>
+      
       <div class="stats">
         <span class="badge">Puntaje: <strong id="final-score">0</strong></span>
         <span class="badge">Aciertos: <strong id="final-correct">0</strong></span>
         <span class="badge">Errores: <strong id="final-incorrect">0</strong></span>
       </div>
-      <div id="motivational-message" class="card"></div>
+      <div class="card" id="motivational-message"></div>
       <div class="actions">
-        <button id="restart" class="btn">Volver a Jugar</button>
+        <button class="btn" id="restart">Volver a Jugar</button>
       </div>
-
       <div class="card">
         <h3>🏆 Ranking de Jugadores</h3>
         <div id="ranking-container-duplicate"></div>
       </div>
     </section>
   </main>
-
   <script src="script.js"></script>
   <script>
     // Soporte para mostrar ranking en pantalla de resultados también
