@@ -13,6 +13,10 @@ let playerName = '';
 let difficulty = 'medio';
 let difficultyMultipliers = { facil: 5, medio: 10, dificil: 12, 'muy-dificil': 15 };
 
+// NUEVO: historial de preguntas para PDF y análisis
+// Cada entrada tendrá: { a, b, respuestaUsuario, correcta, resultadoCorrecto }
+let questionHistory = [];
+
 // DOM Elements
 const setupScreen = document.getElementById('setup-screen');
 const gameScreen = document.getElementById('game-screen');
@@ -34,299 +38,244 @@ const darkModeToggle = document.getElementById('dark-mode-toggle');
 const playerNameInput = document.getElementById('player-name');
 const difficultySelect = document.getElementById('difficulty-select');
 const rankingContainer = document.getElementById('ranking-container');
-const motivationalMessage = document.getElementById('motivational-message');
+// NUEVO: botón para descargar PDF en la pantalla de resultados
+const downloadPdfButton = document.getElementById('download-pdf');
 
-// LocalStorage functions
-function getPlayerData() {
-    const data = localStorage.getItem('multiplicationGameData');
-    return data ? JSON.parse(data) : { players: [] };
+// Utilidades
+function rand(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function savePlayerData(data) {
-    localStorage.setItem('multiplicationGameData', JSON.stringify(data));
+function toggleScreens(showGame) {
+  setupScreen.classList.toggle('hidden', showGame);
+  gameScreen.classList.toggle('hidden', !showGame);
 }
 
-function saveGameResult(playerName, score, correct, incorrect, total, difficulty, duration) {
-    const data = getPlayerData();
-    const player = data.players.find(p => p.name === playerName);
-    
-    const gameResult = {
-        date: new Date().toISOString(),
-        score,
-        correct,
-        incorrect,
-        total,
-        difficulty,
-        duration,
-        percentage: Math.round((correct / total) * 100)
-    };
-    
-    if (player) {
-        player.games.push(gameResult);
-        player.totalGames++;
-        player.bestScore = Math.max(player.bestScore, score);
-        player.totalCorrect += correct;
-        player.totalQuestions += total;
-    } else {
-        data.players.push({
-            name: playerName,
-            games: [gameResult],
-            totalGames: 1,
-            bestScore: score,
-            totalCorrect: correct,
-            totalQuestions: total
-        });
-    }
-    
-    savePlayerData(data);
+function showResultsScreen() {
+  setupScreen.classList.add('hidden');
+  gameScreen.classList.add('hidden');
+  resultsScreen.classList.remove('hidden');
 }
 
-function displayRanking() {
-    const data = getPlayerData();
-    const sortedPlayers = data.players
-        .sort((a, b) => b.bestScore - a.bestScore)
-        .slice(0, 10);
-    
-    if (sortedPlayers.length === 0) {
-        rankingContainer.innerHTML = '<p class="no-ranking">🏆 Aún no hay jugadores en el ranking. ¡Sé el primero!</p>';
-        return;
-    }
-    
-    let rankingHTML = '<h3>🏆 Top 10 Jugadores</h3><div class="ranking-list">';
-    sortedPlayers.forEach((player, index) => {
-        const avgPercentage = Math.round((player.totalCorrect / player.totalQuestions) * 100);
-        const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
-        rankingHTML += `
-            <div class="ranking-item">
-                <span class="ranking-position">${medal}</span>
-                <span class="ranking-name">${player.name}</span>
-                <span class="ranking-stats">
-                    Mejor: ${player.bestScore} pts | Promedio: ${avgPercentage}% | Juegos: ${player.totalGames}
-                </span>
-            </div>
-        `;
-    });
-    rankingHTML += '</div>';
-    rankingContainer.innerHTML = rankingHTML;
+function resetGameState() {
+  score = 0;
+  incorrectCount = 0;
+  correctCount = 0;
+  totalCount = 0;
+  questionCount = 0;
+  questionHistory = []; // NUEVO: vaciar historial al reiniciar
+  feedbackElement.textContent = '';
+  scoreElement.textContent = '0';
+  incorrectElement.textContent = '0';
+  totalElement.textContent = '0';
+  progressElement.textContent = `Pregunta 0 de ${maxQuestions}`;
 }
 
-function getMotivationalMessage(percentage, playerName) {
-    const data = getPlayerData();
-    const player = data.players.find(p => p.name === playerName);
-    
-    let message = '';
-    let tips = '';
-    
-    if (percentage === 100) {
-        message = `🌟 ¡PERFECTO, ${playerName}! ¡Has demostrado ser un maestro de las multiplicaciones!`;
-        tips = '💡 Consejo: ¡Intenta aumentar la dificultad para un mayor desafío!';
-    } else if (percentage >= 90) {
-        message = `🎉 ¡Excelente trabajo, ${playerName}! Estás muy cerca de la perfección.`;
-        tips = '💡 Consejo: Repasa las tablas donde fallaste para lograr el 100%.';
-    } else if (percentage >= 75) {
-        message = `👍 ¡Muy bien, ${playerName}! Vas por buen camino.`;
-        tips = '💡 Consejo: Practica las tablas más difíciles un poco más cada día.';
-    } else if (percentage >= 50) {
-        message = `💪 ¡Sigue esforzándote, ${playerName}! Cada intento te hace mejor.`;
-        tips = '💡 Consejo: Intenta memorizar las tablas que más se te dificultan. ¡Tú puedes!';
-    } else {
-        message = `🌱 No te desanimes, ${playerName}. Todos empezamos desde abajo.`;
-        tips = '💡 Consejo: Empieza con una dificultad más fácil y practica todos los días.';
-    }
-    
-    if (player && player.totalGames > 1) {
-        const lastGame = player.games[player.games.length - 2];
-        if (percentage > lastGame.percentage) {
-            message += ` <br><strong>📈 ¡Mejoraste ${Math.round(percentage - lastGame.percentage)}% desde tu último juego!</strong>`;
-        }
-    }
-    
-    return `${message}<br><br>${tips}`;
+// Inicialización
+playerNameInput.addEventListener('input', () => {
+  playerName = playerNameInput.value.trim();
+  startButton.disabled = !(playerName && selectedTables.length > 0);
+});
+
+difficultySelect.addEventListener('change', () => {
+  difficulty = difficultySelect.value;
+});
+
+// Selección de tablas
+const tablesContainer = document.getElementById('tables');
+tablesContainer.addEventListener('click', (e) => {
+  const btn = e.target.closest('.table-button');
+  if (!btn) return;
+  const t = Number(btn.dataset.table);
+  if (selectedTables.includes(t)) {
+    selectedTables = selectedTables.filter(x => x !== t);
+    btn.classList.remove('active');
+  } else {
+    selectedTables.push(t);
+    btn.classList.add('active');
+  }
+  startButton.disabled = !(playerName && selectedTables.length > 0);
+});
+
+// Generación de una nueva pregunta
+function nextQuestion() {
+  const max = difficultyMultipliers[difficulty] || 10;
+  const a = selectedTables[Math.floor(Math.random() * selectedTables.length)];
+  const b = rand(1, max);
+  currentQuestion = { a, b, answer: a * b };
+  questionElement.textContent = `¿Cuánto es ${a} × ${b}?`;
+  answerInput.value = '';
+  answerInput.focus();
 }
 
-function initializeDarkMode() {
-    const savedMode = localStorage.getItem('darkMode');
-    if (savedMode === 'true') {
-        isDarkMode = true;
-        document.body.classList.add('dark-mode');
-    }
+function startGame() {
+  resetGameState();
+  startTime = Date.now();
+  toggleScreens(true);
+  nextQuestion();
+}
+
+function finishGame() {
+  // Mostrar resultados finales
+  finalScoreElement.textContent = String(score);
+  finalCorrectElement.textContent = String(correctCount);
+  finalIncorrectElement.textContent = String(incorrectCount);
+  showResultsScreen();
+  // Guardar resultado en ranking/localStorage si ya estaba implementado
+  try { saveGameResult && saveGameResult({ playerName, score, correctCount, incorrectCount, totalCount, difficulty, selectedTables }); } catch {}
+}
+
+function checkAnswer() {
+  const val = Number(answerInput.value);
+  if (Number.isNaN(val)) {
+    feedbackElement.textContent = 'Ingresa un número válido.';
+    feedbackElement.className = 'feedback warning';
+    return;
+  }
+
+  const isCorrect = val === currentQuestion.answer;
+
+  // NUEVO: registrar esta pregunta en el historial para el PDF
+  questionHistory.push({
+    a: currentQuestion.a,
+    b: currentQuestion.b,
+    respuestaUsuario: val,
+    correcta: isCorrect,
+    resultadoCorrecto: currentQuestion.answer
+  });
+
+  if (isCorrect) {
+    score += 10; // o la lógica existente
+    correctCount += 1;
+    feedbackElement.textContent = '✅ ¡Correcto!';
+    feedbackElement.className = 'feedback correct';
+  } else {
+    incorrectCount += 1;
+    feedbackElement.textContent = `❌ Incorrecto. La respuesta correcta era ${currentQuestion.answer}.`;
+    feedbackElement.className = 'feedback incorrect';
+  }
+
+  totalCount += 1;
+  questionCount += 1;
+
+  // Actualizar UI
+  scoreElement.textContent = String(score);
+  incorrectElement.textContent = String(incorrectCount);
+  totalElement.textContent = String(totalCount);
+  progressElement.textContent = `Pregunta ${questionCount} de ${maxQuestions}`;
+
+  // Continuar o finalizar
+  if (questionCount >= maxQuestions) {
+    finishGame();
+  } else {
+    nextQuestion();
+  }
+}
+
+// Modo oscuro
+function applyDarkMode() {
+  document.body.classList.toggle('dark-mode', isDarkMode);
 }
 
 darkModeToggle.addEventListener('click', () => {
-    isDarkMode = !isDarkMode;
-    document.body.classList.toggle('dark-mode');
-    localStorage.setItem('darkMode', isDarkMode);
+  isDarkMode = !isDarkMode;
+  applyDarkMode();
 });
 
-const tableButtons = document.querySelectorAll('.table-button');
-tableButtons.forEach(button => {
-    button.addEventListener('click', () => {
-        button.classList.toggle('active');
-        updateSelectedTables();
-    });
-});
-
-function updateSelectedTables() {
-    selectedTables = [];
-    tableButtons.forEach(button => {
-        if (button.classList.contains('active')) {
-            selectedTables.push(parseInt(button.dataset.table));
-        }
-    });
-    startButton.disabled = selectedTables.length === 0 || !playerNameInput.value.trim();
-}
-
-playerNameInput.addEventListener('input', () => {
-    updateSelectedTables();
-});
-
-difficultySelect.addEventListener('change', (e) => {
-    difficulty = e.target.value;
-});
-
+// Eventos principales
 startButton.addEventListener('click', startGame);
-
-function startGame() {
-    playerName = playerNameInput.value.trim();
-    if (selectedTables.length === 0 || !playerName) {
-        alert('Por favor, ingresa tu nombre y selecciona al menos una tabla.');
-        return;
-    }
-    
-    score = 0;
-    incorrectCount = 0;
-    correctCount = 0;
-    totalCount = 0;
-    questionCount = 0;
-    startTime = Date.now();
-    
-    setupScreen.classList.add('hidden');
-    gameScreen.classList.remove('hidden');
-    resultsScreen.classList.add('hidden');
-    
-    nextQuestion();
-}
-
-function generateQuestion() {
-    const table = selectedTables[Math.floor(Math.random() * selectedTables.length)];
-    const multiplier = Math.floor(Math.random() * difficultyMultipliers[difficulty]) + 1;
-    return {
-        num1: table,
-        num2: multiplier,
-        answer: table * multiplier
-    };
-}
-
-function nextQuestion() {
-    if (questionCount >= maxQuestions) {
-        endGame();
-        return;
-    }
-    
-    currentQuestion = generateQuestion();
-    questionCount++;
-    
-    questionElement.textContent = `${currentQuestion.num1} × ${currentQuestion.num2} = ?`;
-    answerInput.value = '';
-    answerInput.focus();
-    feedbackElement.textContent = '';
-    feedbackElement.className = 'feedback';
-    
-    updateProgress();
-}
-
-function updateProgress() {
-    progressElement.textContent = `Pregunta ${questionCount} de ${maxQuestions}`;
-}
-
-function updateScore() {
-    scoreElement.textContent = correctCount;
-    incorrectElement.textContent = incorrectCount;
-    totalElement.textContent = totalCount;
-    announceScore();
-}
-
 submitButton.addEventListener('click', checkAnswer);
-answerInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        checkAnswer();
-    }
+answerInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') checkAnswer();
 });
-
-function checkAnswer() {
-    const userAnswer = parseInt(answerInput.value);
-    
-    if (isNaN(userAnswer)) {
-        feedbackElement.textContent = '⚠️ Por favor, ingresa un número válido';
-        feedbackElement.className = 'feedback warning';
-        return;
-    }
-    
-    totalCount++;
-    
-    if (userAnswer === currentQuestion.answer) {
-        correctCount++;
-        score += 10;
-        feedbackElement.textContent = '✅ ¡Correcto! ¡Excelente!';
-        feedbackElement.className = 'feedback correct';
-    } else {
-        incorrectCount++;
-        feedbackElement.textContent = `❌ Incorrecto. La respuesta correcta es ${currentQuestion.answer}`;
-        feedbackElement.className = 'feedback incorrect';
-    }
-    
-    updateScore();
-    
-    setTimeout(() => {
-        nextQuestion();
-    }, 1500);
-}
-
-function endGame() {
-    const duration = Math.round((Date.now() - startTime) / 1000);
-    const percentage = Math.round((correctCount / totalCount) * 100);
-    
-    saveGameResult(playerName, score, correctCount, incorrectCount, totalCount, difficulty, duration);
-    
-    gameScreen.classList.add('hidden');
-    resultsScreen.classList.remove('hidden');
-    
-    finalScoreElement.textContent = score;
-    finalCorrectElement.textContent = correctCount;
-    finalIncorrectElement.textContent = incorrectCount;
-    
-    motivationalMessage.innerHTML = getMotivationalMessage(percentage, playerName);
-    
-    displayRanking();
-}
 
 restartButton.addEventListener('click', () => {
-    resultsScreen.classList.add('hidden');
-    setupScreen.classList.remove('hidden');
-    
-    tableButtons.forEach(button => button.classList.remove('active'));
-    selectedTables = [];
-    playerNameInput.value = '';
-    difficultySelect.value = 'medio';
-    difficulty = 'medio';
-    startButton.disabled = true;
-    
-    displayRanking();
+  resultsScreen.classList.add('hidden');
+  setupScreen.classList.remove('hidden');
 });
 
-document.addEventListener('DOMContentLoaded', function() {
-    document.body.style.transition = 'all 0.3s ease';
-    initializeDarkMode();
-    displayRanking();
-});
+// NUEVO: generación de PDF usando jsPDF
+// Esta función crea un PDF con: nombre, tablas, dificultad, puntaje, aciertos, errores e historial
+async function generateResultsPDF() {
+  // jsPDF está expuesto en window.jspdf.jsPDF cuando se carga desde CDN
+  const { jsPDF } = window.jspdf || {};
+  if (!jsPDF) {
+    alert('No se pudo cargar jsPDF. Revisa tu conexión a Internet.');
+    return;
+  }
 
-function announceScore() {
-    const announcement = `Aciertos: ${correctCount}, Errores: ${incorrectCount}, Total: ${totalCount}`;
-    const srOnly = document.createElement('div');
-    srOnly.className = 'visually-hidden';
-    srOnly.setAttribute('role', 'status');
-    srOnly.setAttribute('aria-live', 'polite');
-    srOnly.textContent = announcement;
-    document.body.appendChild(srOnly);
-    setTimeout(() => srOnly.remove(), 1000);
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  const margin = 40;
+  let y = margin;
+
+  // Encabezado
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
+  doc.text('Resultados - Juego de Tablas de Multiplicar', margin, y);
+  y += 24;
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+  const fecha = new Date().toLocaleString();
+  doc.text(`Fecha: ${fecha}`, margin, y);
+  y += 18;
+
+  // Datos principales
+  const tablasTxt = selectedTables.length ? selectedTables.sort((a,b)=>a-b).join(', ') : 'N/A';
+  doc.text(`Nombre: ${playerName || 'Sin nombre'}`, margin, y); y += 16;
+  doc.text(`Dificultad: ${difficulty}`, margin, y); y += 16;
+  doc.text(`Tablas: ${tablasTxt}`, margin, y); y += 16;
+  doc.text(`Puntaje: ${score}`, margin, y); y += 16;
+  doc.text(`Aciertos: ${correctCount}`, margin, y); y += 16;
+  doc.text(`Errores: ${incorrectCount}`, margin, y); y += 24;
+
+  // Subtítulo historial
+  doc.setFont('helvetica', 'bold');
+  doc.text('Historial de preguntas', margin, y); y += 16;
+  doc.setFont('helvetica', 'normal');
+
+  // Columnas
+  const colX = [margin, margin + 140, margin + 300, margin + 420];
+  doc.setFontSize(10);
+  doc.text('Pregunta', colX[0], y);
+  doc.text('Tu respuesta', colX[1], y);
+  doc.text('Correcta', colX[2], y);
+  doc.text('Resultado', colX[3], y);
+  y += 12;
+  doc.setLineWidth(0.5);
+  doc.line(margin, y, 555, y);
+  y += 10;
+
+  // Filas con salto de página cuando se acerque al final
+  const lineHeight = 14;
+  const maxY = 780; // límite aprox para A4 en pt con margen
+  questionHistory.forEach((q) => {
+    const pregunta = `${q.a} × ${q.b}`;
+    const tuResp = String(q.respuestaUsuario);
+    const esCorr = q.correcta ? '✅' : '❌';
+    const resultado = String(q.resultadoCorrecto);
+
+    if (y + lineHeight > maxY) {
+      doc.addPage();
+      y = margin;
+    }
+
+    doc.text(pregunta, colX[0], y);
+    doc.text(tuResp, colX[1], y);
+    doc.text(esCorr, colX[2], y);
+    doc.text(resultado, colX[3], y);
+    y += lineHeight;
+  });
+
+  // Nombre de archivo amigable: nombre_dificultad_fecha.pdf
+  const safeName = (playerName || 'sin-nombre').toLowerCase().replace(/\s+/g, '-');
+  const safeDiff = (difficulty || 'medio').replace(/\s+/g, '-');
+  const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g, '-');
+  const fileName = `${safeName}_${safeDiff}_${stamp}.pdf`;
+
+  doc.save(fileName);
+}
+
+// Enlazar botón de descarga en resultados (si existe en el DOM actual)
+if (downloadPdfButton) {
+  downloadPdfButton.addEventListener('click', generateResultsPDF);
 }
